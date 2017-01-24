@@ -6,8 +6,8 @@
 (define areas
   (hash
    "pile" (area 10 150 1)
-   "hand" (area 100 450 80)
-   "foot" (area 100 10 40)
+   "human" (area 100 450 80)
+   "program" (area 100 10 40)
    "upper" (area 240 200 120)
    "lower" (area 280 240 120)))
 
