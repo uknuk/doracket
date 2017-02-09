@@ -1,49 +1,68 @@
 #lang racket
-(require games/cards srfi/1 "view.rkt")
+(require games/cards srfi/1 "view.rkt" "game.rkt")
 
-(define ACE 1)
 (define HAND-SIZE 6)
+(define HUMAN 0)
+(define PROGRAM 1)
 
-(define deck
-  (shuffle-list
-   (filter
-    (lambda (card)
-      (let ((value (send card get-value)))
-        (or (= ACE value) (> value 5))))
-    (make-deck))
-   7))
+(struct player (name hand gaps visible) #:mutable)
 
-(struct state (move pile hand foot) #:mutable)
-(define st (state 0 deck '() '()))
+;; (struct state (turn move pile table trump) #:mutable)
 
+(define human
+  (player "human" '() '() #t))
+
+(define program
+  (player "program" '() '() #f))
+
+(define pile shuffle-deck)
+(define table '())
+(define move 0)
+(define turn HUMAN)
+
+(define trump (send (last pile) get-suit))
+
+(define respond (gen-respond trump))
+ 
 (define (card-click card)
-  (when (member card (state-hand st))
-      (begin
-        (view-move card "lower" (state-move st))
-        (set-state-move! st (add1 (state-move st))))))
+  (when (and (= turn HUMAN) (member card (player-hand human)))
+         (begin
+           (view-move card "lower" move)
+           ;; (view-move (respond program card table trump))
+           (set! move (add1 move)))))
+
 
 (define (btn-click btn event)
-    (view-message "Button click"))
+  (view-message "Button click"))
    
 
-(define (fill set get area show)
-  (let ([size (- HAND-SIZE (length (get st)))])
+(define (fill party)
+  (let ([size (- HAND-SIZE (length (player-hand party)))])
     (when (positive? size)
-    (let-values ([(moving left) (split-at (state-pile st) size)])
-      (set-state-pile! st left)
-      (set st moving)
-      (let ([n 0])
-        (for-each (lambda (card)
-                (view-move card area n)
-                (when show (send card face-up))
-                (set! n (+ n 1)))
-              moving))))))
+      (let-values ([(moving left) (split-at pile size)])
+        (set! pile left)
+        (set-player-hand! party moving)
+        (let ([n 0])
+          (for-each (lambda (card)
+                      (view-move card (player-name party) n)
+                      (when (player-visible party) (send card face-up))
+                      (set! n (+ n 1)))
+                    moving))))))
+
+(define (flip-program)
+  (for-each (lambda (card) (send card flip)) (player-hand program)))
+
+(define (play turn)
+  (if (= turn HUMAN) (view-message "Your turn. Attack!") (view-message "Defend")))
+  
+(define (start)
+  (view-init pile card-click btn-click)
+  (fill human)
+  (fill program)
+  (play (least-trump (list (player-hand human) (player-hand program)) trump)))
+  (flip-program)
 
 
-
-(view-init (state-pile st) card-click btn-click)
-(fill set-state-hand! state-hand "hand" #t)
-(fill set-state-foot! state-foot "foot" #f)
 
 
 
