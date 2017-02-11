@@ -1,6 +1,6 @@
 #lang racket
 (require games/cards racket/gui/base)
-(provide view-init view-move view-message)
+(provide view-init view-move view-message set-btn discard)
 
 (struct area (x y delta) #:transparent)
 (define areas
@@ -22,7 +22,7 @@
   (show-pile deck)
   (send tbl set-single-click-action card-click)
   (set! btn
-    (new button% [parent tbl] [label ""] [enabled #f] [callback btn-click]))
+    (new button% [parent tbl] [label ""] [enabled #t] [callback btn-click]))
   (send tbl show #t))
 
 (define (view-move card key n)
@@ -46,3 +46,10 @@
   (let* ([trump (last cards)])
     (send tbl rotate-card trump 'cw)
     (send trump face-up)))
+
+(define (set-btn txt)
+  (send btn set-label txt))
+
+(define (discard table)
+  (send tbl remove-cards table))
+;; ffs: move to bin for analysis
