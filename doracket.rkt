@@ -38,18 +38,21 @@
 (define (take party)
   (when (equal? party program)
     (flip-cards table)) 
-  (fill party table)
+  (add-from-table party)
   (set-player-gaps! party (iota (length table) HAND-SIZE))
-  (fill party table))
+  (add-from-table party))
 
 
-(define (reset change)
+(define (reset change takes)
   (if (human-turn?)
+      ; pass human
       (begin
         (discard table)
-        (fill human pile))
-      (take human))
-  (fill program pile)
+        (add-from-pile human))
+      (if takes
+          (take human) ; take human
+          (add-from-pile human))) ; pass/take program
+  (add-from-pile program)
   (set! table '())
   (when change
     (set! turn (- 1 turn)))
@@ -69,7 +72,7 @@
                      (set-btn "PASS"))
                    (begin
                      (take program)
-                     (reset #f))))
+                     (reset #f #f))))
              (begin
                (set! move (add1 move))
                (attack-program))))))
@@ -88,31 +91,44 @@
        (begin
          (transfer-program acard)
          (set-btn "TAKE"))
-       (reset #t)))
+       (begin
+         (discard table)
+         (reset #t #f))))
       
     
 (define (btn-click btn event)
-  (when (positive? move)
-    (reset (human-turn?))))
+  (when (or human-turn? (positive? move))
+    (reset (human-turn?) #t)))
 
-(define (fill party from)
+(define (add-hand party cards)
+  (set-player-hand! party (append (player-hand party) cards))
+  (for-each
+   (lambda (card)
+     (let ([gap  (car (player-gaps party))])
+       (view-move card (player-name party) gap)
+       (set-player-gaps! party (cdr (player-gaps party)))
+       (when (player-visible party) (send card face-up))))
+   cards))
+   
+
+(define (add-from-pile party)
+  (let ([size (- HAND-SIZE (length (player-hand party)))])
+    (when (positive? size)
+      (let-values ([(moving left) (split-at pile size)])
+        (set! pile left)
+        (add-hand party moving)))))
+
+(define (add-from-table party)
   (let ([size (length (player-gaps party))])
     (when (positive? size)
-      (let-values ([(moving left) (split-at from size)])
-        (if (equal? from pile)
-            (set! pile left)
-            (set! table left))
-        (set-player-hand! party (append (player-hand party) moving))
-        (let ([n 0])
-          (for-each (lambda (card)
-                      (view-move card (player-name party) (list-ref (player-gaps party) n))
-                      (when (player-visible party) (send card face-up))
-                      (set! n (+ n 1)))
-                    moving)))))
-  (set-player-gaps! party '()))
+      (let-values ([(moving left) (split-at table size)])
+         (set! table left)
+         (add-hand party moving)))))
+
+
 
 (define (flip-cards cards)
-  (for-each (lambda (card) (send card flip) cards)))
+  (for-each (lambda (card) (send card flip)) cards))
     
 (define (flip-program)
   (flip-cards (player-hand program)))
@@ -122,6 +138,7 @@
 
 (define (play)
   (set! move 0)
+  (set-btn "")
   (if (human-turn?)
       (view-message "Your turn. Attack!")
       (attack-program)))
@@ -129,12 +146,12 @@
   
 (define (start)
   (view-init pile card-click btn-click)
-  (fill human pile)
-  (fill program pile)
+  (add-from-pile human)
+  (add-from-pile program)
   (set! turn (least-trump (list (player-hand human) (player-hand program)) trump))
   (play))
 
-;; (start)
+(start)
 
 
 
