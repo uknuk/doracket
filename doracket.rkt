@@ -2,8 +2,6 @@
 (require games/cards srfi/1 "view.rkt" "game.rkt")
 
 (define HAND-SIZE 6)
-(define HUMAN 0)
-(define PROGRAM 1)
 
 (struct player (name hand gaps visible region) #:mutable #:transparent)
 (define human
@@ -15,7 +13,8 @@
 (define pile shuffle-deck)
 (define table '())
 (define move 0)
-(define turn HUMAN)
+(define turn 0)
+(define acard #f)
 
 (define trump (send (last pile) get-suit))
 
@@ -37,13 +36,15 @@
   (send card flip))
 
 (define (take party)
+  (when (equal? party program)
+    (flip-cards table)) 
   (fill party table)
-  (set-player-gaps! party (iota (+ HAND-SIZE (length table)) HAND-SIZE))
+  (set-player-gaps! party (iota (length table) HAND-SIZE))
   (fill party table))
 
 
 (define (reset change)
-  (if (= turn HUMAN)
+  (if (human-turn?)
       (begin
         (discard table)
         (fill human pile))
@@ -52,13 +53,14 @@
   (set! table '())
   (when change
     (set! turn (- 1 turn)))
-  (set! move 0))
+  (play))
+   
 
 (define (card-click card)
-  (when (member card (player-hand human))
+  (when (and (member card (player-hand human)) (check card))
          (begin
            (transfer card human)
-           (if (= turn HUMAN)            
+           (if (human-turn?)           
              (let ([rcard (respond card (player-hand program))])
                (if rcard
                    (begin
@@ -68,32 +70,39 @@
                    (begin
                      (take program)
                      (reset #f))))
-             (attack-program)))))
+             (begin
+               (set! move (add1 move))
+               (attack-program))))))
+
+(define (check card)
+  (if (human-turn?)
+      (if (empty? table)
+          #t
+          (member (rank card) (map rank table)))
+      (val<? acard card)))
 
 (define (attack-program)
-   (view-message "Defend")
-   (if (positive? move)
-       (set-btn "Take")
-       (set-btn ""))
-   (let ([acard (attack (player-hand program) table)])
-     (if acard
-         (transfer-program (attack (player-hand program) table))
-         (reset #t))))
+   (view-message "Defend Yourself")   
+   (set! acard (attack (player-hand program) table))
+   (if acard
+       (begin
+         (transfer-program acard)
+         (set-btn "TAKE"))
+       (reset #t)))
       
     
 (define (btn-click btn event)
   (when (positive? move)
-    (begin
-      (reset (= turn HUMAN)) ;; change if PASS
-      (play))))
-   
+    (reset (human-turn?))))
 
 (define (fill party from)
   (let ([size (length (player-gaps party))])
     (when (positive? size)
       (let-values ([(moving left) (split-at from size)])
-        (set! pile left)
-        (set-player-hand! party moving)
+        (if (equal? from pile)
+            (set! pile left)
+            (set! table left))
+        (set-player-hand! party (append (player-hand party) moving))
         (let ([n 0])
           (for-each (lambda (card)
                       (view-move card (player-name party) (list-ref (player-gaps party) n))
@@ -102,11 +111,18 @@
                     moving)))))
   (set-player-gaps! party '()))
 
+(define (flip-cards cards)
+  (for-each (lambda (card) (send card flip) cards)))
+    
 (define (flip-program)
-  (for-each (lambda (card) (send card flip)) (player-hand program)))
+  (flip-cards (player-hand program)))
+
+(define (human-turn?)
+  (= turn 0))
 
 (define (play)
-  (if (= turn HUMAN)
+  (set! move 0)
+  (if (human-turn?)
       (view-message "Your turn. Attack!")
       (attack-program)))
        
@@ -118,7 +134,7 @@
   (set! turn (least-trump (list (player-hand human) (player-hand program)) trump))
   (play))
 
-
+;; (start)
 
 
 
