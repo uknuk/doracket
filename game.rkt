@@ -1,6 +1,6 @@
 #lang racket
 (require games/cards srfi/1)
-(provide shuffle-deck least-trump gen-val<? gen-respond gen-attack rank)
+(provide shuffle-deck least-trump gen-val<? gen-respond gen-attack rank suit)
 
 (define ACE 1)
 (define ACE-VAL 14)
