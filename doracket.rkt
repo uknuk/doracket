@@ -13,11 +13,14 @@
 (define deck shuffle-deck)
 
 (define state
-  {'pile deck 'table '() 'move 0})
+  {'pile deck 'table '() 'move 0 'msg "Welcome!"})
 
-(define trump (suit (last (state 'pile))))
+(define (state! key val)
+  (set! state (state key val)))
 
-(define val<? (gen-val<? trump))
+(state! 'trump (suit (last (state 'pile))))
+
+(define val<? (gen-val<? (state 'trump)))
 (define respond (gen-respond val<?))
 (define attack (gen-attack val<?))
 
@@ -27,7 +30,7 @@
          [slot (list-ref (player-slots party) idx)])
     (set-player-hand! party (remove card= (player-hand party)))
     (set-player-slots! party (remove (curry equal? slot) (player-slots party)))
-    (set! state (state 'table (append (state 'table) (list card))))
+    (state! 'table (append (state 'table) (list card)))
     (set-player-gaps! party (append (player-gaps party) (list slot)))
     (view-move card (player-region party) (state 'move))))
   
@@ -39,7 +42,7 @@
   (when (equal? party program)
     (flip-cards (state 'table))) 
   (fill party 'table)
-  (set-player-gaps! party (iota (length (state 'table)) HAND-SIZE))
+  (set-player-gaps! party (iota (length (state 'table)) (length (player-hand party))))
   (fill party 'table))
 
 
@@ -65,8 +68,9 @@
   (when (and (member card (player-hand human)) (check card))
          (begin
            (transfer card human)
+           (state! 'msg "")
            (if (human-turn?)           
-             (let ([rcard (respond card (player-hand program))])
+             (let ([rcard (respond card (player-hand program) state)])
                (if rcard
                    (begin
                      (transfer-program rcard)          
@@ -74,6 +78,7 @@
                      (set-btn "PASS"))
                    (begin
                      (take program)
+                     (state! 'msg "Computer takes.")
                      (reset #f #f))))
              (begin
                (next-move)
@@ -88,13 +93,14 @@
 
 (define (attack-program)
    (view-message "Defend Yourself")   
-   (set! state (state 'acard (attack (player-hand program) (state 'table))))
+   (state! 'acard (attack (player-hand program) state))
    (if (state 'acard)
        (begin
          (transfer-program (state 'acard))
          (set-btn "TAKE"))
        (begin
          (discard (state 'table))
+         (state! 'msg "Computer passes.")
          (reset #t #f))))
       
     
@@ -111,7 +117,7 @@
          [size (min needed (length source))])
     (when (and (positive? size) (positive? (length source)))
       (let-values ([(moving left) (split-at (state from) size)])
-        (set! state (state from left))
+        (state! from left)
         (set-player-hand! party (append (player-hand party) moving))
         (for-each
          (lambda (card)
@@ -132,18 +138,17 @@
   (= (state 'turn) 0))
 
 (define (play)
-  (set! state (state 'move 0))
+  (state! 'move 0)
   (set-btn "")
   (if (human-turn?)
-      (view-message "Your turn. Attack!")
+      (view-message (string-append (state 'msg) " Your turn. Attack!"))
       (attack-program)))
        
 (define (start)
   (view-init (state 'pile) card-click btn-click)
   (fill human 'pile)
   (fill program 'pile)
-  (set! state (state 'turn
-                     (least-trump (list (player-hand human) (player-hand program)) trump)))
+  (state! 'turn (least-trump (list (player-hand human) (player-hand program)) (state 'trump)))
   (play))
 
 (start)

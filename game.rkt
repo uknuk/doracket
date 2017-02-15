@@ -1,4 +1,4 @@
-#lang racket
+#lang rackjure
 (require games/cards srfi/1)
 (provide shuffle-deck least-trump gen-val<? gen-respond gen-attack rank suit)
 
@@ -53,9 +53,19 @@
         (map (lambda (party) (least-rank party trump)) parties)])
     (if (<= (first ranks) (last ranks)) 0 1)))
 
+(define (with-trumps? cards state)
+  (let ([pile (state 'pile)]
+        [trump (state 'trump)])
+    (if (< (length pile) 12)
+        cards
+        (filter (lambda (card) (not (equal? (suit card) trump))) cards))))
+
+
+
 (define (gen-respond val<?)
-  (lambda (acard cards)
-    (let ([strong (filter (lambda (card) (val<? acard card)) cards)])
+  (lambda (acard cards state)
+    (let* ([played (with-trumps? cards state)]
+           [strong (filter (lambda (card) (val<? acard card)) played)])
       (if (empty? strong)
           #f
           (first (sort strong val<?))))))
@@ -65,11 +75,13 @@
   (define val-rank<?
     (lambda (c1 c2)
       (val<? c1 c2 #t)))
-  (lambda (cards table)
-    (if (empty? table)
+  (lambda (cards state)
+    (let ([table (state 'table)])
+      (if (empty? table)
         (first (sort cards val-rank<?))
         (let* ([ranks (map rank table)]
-               [more (filter (lambda (card) (member (rank card) ranks)) cards)])
+               [played (with-trumps? cards state)]
+               [more (filter (lambda (card) (member (rank card) ranks)) played)])
           (if (empty? more)
               #f
-              (first (sort  more val-rank<?)))))))
+              (first (sort  more val-rank<?))))))))
