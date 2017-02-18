@@ -1,5 +1,5 @@
 #lang rackjure
-(require games/cards srfi/1)
+(require games/cards srfi/1 srfi/27)
 (provide shuffle-deck least-trump gen-val<? gen-respond gen-attack rank suit)
 
 (define ACE 1)
@@ -15,9 +15,8 @@
 
 (define shuffle-deck
   (shuffle-list
-   (filter (lambda (card) (> (rank card) 5))
-    (make-deck))
-   7))
+   (filter (lambda (card) (> (rank card) 5)) (make-deck))
+   (random-integer 20)))
 
 (define (rank<? c1 c2)
   (< (rank c1) (rank c2)))
@@ -53,10 +52,10 @@
         (map (lambda (party) (least-rank party trump)) parties)])
     (if (<= (first ranks) (last ranks)) 0 1)))
 
-(define (with-trumps? cards state)
+(define (with-trumps? cards state threshold)
   (let ([pile (state 'pile)]
         [trump (state 'trump)])
-    (if (< (length pile) 12)
+    (if (< (length pile) threshold)
         cards
         (filter (lambda (card) (not (equal? (suit card) trump))) cards))))
 
@@ -64,7 +63,7 @@
 
 (define (gen-respond val<?)
   (lambda (acard cards state)
-    (let* ([played (with-trumps? cards state)]
+    (let* ([played (with-trumps? cards state 12)]
            [strong (filter (lambda (card) (val<? acard card)) played)])
       (if (empty? strong)
           #f
@@ -80,7 +79,7 @@
       (if (empty? table)
         (first (sort cards val-rank<?))
         (let* ([ranks (map rank table)]
-               [played (with-trumps? cards state)]
+               [played (with-trumps? cards state 6)]
                [more (filter (lambda (card) (member (rank card) ranks)) played)])
           (if (empty? more)
               #f

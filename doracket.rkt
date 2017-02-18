@@ -4,25 +4,33 @@
 (define HAND-SIZE 6)
 
 (struct player (name hand slots gaps visible region) #:mutable #:transparent)
-(define human
-  (player "human" '() '() (iota HAND-SIZE 0) #t "lower"))
+(define human null)
+(define program null)
+(define state null)
+(define val<? null)
+(define respond null)
+(define attack null)
 
-(define program
-  (player "program" '() '() (iota HAND-SIZE 0) #f "upper"))
+(define (start)
+  (set! human
+        (player "human" '() '() (iota HAND-SIZE 0) #t "lower"))
+  (set! program
+        (player "program" '() '() (iota HAND-SIZE 0) #f "upper"))
+  (set! state
+    {'pile shuffle-deck 'table '() 'move 0 'msg "Welcome!"})
+  (state! 'trump (suit (last (state 'pile))))
+  (set! val<? (gen-val<? (state 'trump)))
+  (set! respond (gen-respond val<?))
+  (set! attack (gen-attack val<?))
+  (show-pile (state 'pile))
+  (fill human 'pile)
+  (fill program 'pile)
+  (state! 'turn (least-trump (list (player-hand human) (player-hand program)) (state 'trump)))
+  (play))
 
-(define deck shuffle-deck)
-
-(define state
-  {'pile deck 'table '() 'move 0 'msg "Welcome!"})
 
 (define (state! key val)
   (set! state (state key val)))
-
-(state! 'trump (suit (last (state 'pile))))
-
-(define val<? (gen-val<? (state 'trump)))
-(define respond (gen-respond val<?))
-(define attack (gen-attack val<?))
 
 (define (transfer card party)
   (let* ([card= (curry equal? card)]
@@ -108,6 +116,12 @@
   (when (or human-turn? (positive? (state 'move)))
     (reset (human-turn?) #t)))
 
+(define (new-game btn event)
+  (discard (state 'pile))
+  (discard (player-hand human))
+  (discard (player-hand program))
+  (discard (state 'table))
+  (start))
 
 (define (fill party from)
   (let* ([source (state from)]
@@ -144,14 +158,7 @@
       (view-message (string-append (state 'msg) " Your turn. Attack!"))
       (attack-program)))
        
-(define (start)
-  (view-init (state 'pile) card-click btn-click)
-  (fill human 'pile)
-  (fill program 'pile)
-  (state! 'turn (least-trump (list (player-hand human) (player-hand program)) (state 'trump)))
-  (play))
-
+(view-init card-click btn-click new-game)
 (start)
-
 
 

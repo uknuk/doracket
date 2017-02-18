@@ -1,6 +1,6 @@
 #lang racket
 (require games/cards racket/gui/base)
-(provide view-init view-move view-message set-btn discard)
+(provide view-init view-move view-message show-pile set-btn discard)
 
 (struct area (x y delta) #:transparent)
 (define areas
@@ -16,14 +16,22 @@
 (define msg
   (new message% [parent tbl] [label "Welcome"]))
 
-(define btn null)
+(define panel
+  (new horizontal-panel% [parent tbl] [alignment '(center center)]))
 
-(define (view-init deck card-click btn-click)
-  (show-pile deck)
+
+(define btn null)
+(define new-btn null)
+
+(define (view-init card-click btn-click new-game)
   (send tbl set-single-click-action card-click)
   (set! btn
-    (new button% [parent tbl] [label ""] [enabled #t] [callback btn-click]))
-  (send tbl show #t))
+    (new button% [parent panel] [label "EMPTY"] [enabled #t] [callback btn-click]))
+  (set! new-btn
+    (new button% [parent panel] [label "New Game"] [enabled #t] [callback new-game]))
+   (send tbl show #t))
+
+
 
 (define (view-move card key n)
   (let ([region (hash-ref areas key)])
@@ -50,6 +58,6 @@
 (define (set-btn txt)
   (send btn set-label txt))
 
-(define (discard table)
-  (send tbl remove-cards table))
+(define (discard cards)
+  (send tbl remove-cards cards))
 ;; ffs: move to bin for analysis
