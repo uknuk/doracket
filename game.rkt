@@ -1,5 +1,5 @@
 #lang rackjure
-(require games/cards srfi/1 srfi/27)
+(require games/cards srfi/1)
 (provide shuffle-deck least-trump gen-val<? gen-respond gen-attack rank suit)
 
 (define ACE 1)
@@ -13,10 +13,9 @@
 (define (suit card)
   (send card get-suit))
 
-(define shuffle-deck
+(define (shuffle-deck)
   (shuffle-list
-   (filter (lambda (card) (> (rank card) 5)) (make-deck))
-   (random-integer 20)))
+   (filter (lambda (card) (> (rank card) 5)) (make-deck)) 7))
 
 (define (rank<? c1 c2)
   (< (rank c1) (rank c2)))

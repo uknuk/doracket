@@ -7,6 +7,7 @@
 (define human null)
 (define program null)
 (define state null)
+ 
 (define val<? null)
 (define respond null)
 (define attack null)
@@ -17,7 +18,7 @@
   (set! program
         (player "program" '() '() (iota HAND-SIZE 0) #f "upper"))
   (set! state
-    {'pile shuffle-deck 'table '() 'move 0 'msg "Welcome!"})
+       {'pile (shuffle-deck) 'table '() 'move 0 'msg "Welcome!"})  
   (state! 'trump (suit (last (state 'pile))))
   (set! val<? (gen-val<? (state 'trump)))
   (set! respond (gen-respond val<?))
