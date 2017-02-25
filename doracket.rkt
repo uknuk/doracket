@@ -18,7 +18,7 @@
   (set! program
         (player "program" '() '() (iota HAND-SIZE 0) #f "upper"))
   (set! state
-       {'pile (shuffle-deck) 'table '() 'move 0 'msg "Welcome!"})  
+        {'pile (shuffle-deck) 'table '() 'move 0 'msg "Welcome!"})  
   (state! 'trump (suit (last (state 'pile))))
   (set! val<? (gen-val<? (state 'trump)))
   (set! respond (gen-respond val<?))
@@ -92,6 +92,7 @@
              (begin
                (next-move)
                (attack-program))))))
+         ;(#f)))
 
 (define (check card)
   (if (human-turn?)
@@ -114,14 +115,11 @@
       
     
 (define (btn-click btn event)
-  (when (or human-turn? (positive? (state 'move)))
+  (when (not (and (human-turn?) (zero? (state 'move))))
     (reset (human-turn?) #t)))
 
 (define (new-game btn event)
-  (discard (state 'pile))
-  (discard (player-hand human))
-  (discard (player-hand program))
-  (discard (state 'table))
+  (clean-table)
   (start))
 
 (define (fill party from)
