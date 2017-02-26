@@ -18,7 +18,7 @@
   (set! program
         (player "program" '() '() (iota HAND-SIZE 0) #f "upper"))
   (set! state
-        {'pile (shuffle-deck) 'table '() 'move 0 'msg "Welcome!"})  
+        {'pile (shuffle-deck) 'table '() 'move 0 'msg "Welcome!" 'more #f})  
   (state! 'trump (suit (last (state 'pile))))
   (set! val<? (gen-val<? (state 'trump)))
   (set! respond (gen-respond val<?))
@@ -62,16 +62,18 @@
         (discard (state 'table))
         (fill human 'pile))
       (if takes
-          (take human) ; take human
-          (fill human 'pile))) ; pass/take program
+          (take human) 
+          (fill human 'pile))) ; pass program
   (fill program 'pile)
-  (set! state (state 'table '()))
-  (when change
-    (set! state (state 'turn (- 1 (state 'turn)))))
+  (if change
+    (state! 'turn (- 1 (state 'turn)))
+    (begin
+      (take program)
+      (state! 'more #f)))
   (play))
    
 (define (next-move)
-  (set! state (state 'move (add1 (state 'move)))))
+  (state! 'move (add1 (state 'move))))
   
 (define (card-click card)
   (when (and (member card (player-hand human)) (check card))
@@ -81,18 +83,17 @@
            (if (human-turn?)           
              (let ([rcard (respond card (player-hand program) state)])
                (if rcard
+                   (transfer-program rcard)                                
                    (begin
-                     (transfer-program rcard)          
-                     (next-move)
-                     (set-btn "PASS"))
-                   (begin
-                     (take program)
-                     (state! 'msg "Computer takes.")
-                     (reset #f #f))))
+                     (state! 'more #t)
+                     (view-message "Computer takes. You can add more cards")))
+               (set-btn "PASS")
+               (next-move))
              (begin
                (next-move)
                (attack-program))))))
-         ;(#f)))
+            
+               
 
 (define (check card)
   (if (human-turn?)
@@ -116,7 +117,18 @@
     
 (define (btn-click btn event)
   (when (not (and (human-turn?) (zero? (state 'move))))
-    (reset (human-turn?) #t)))
+    (if (human-turn?)
+        (reset (not (state 'more)) #f) ; pass, change unless pass for more cards after program took
+        (add-program)))) ; take
+
+(define (add-program)
+  (let ([card (attack (player-hand program) state)])
+    (if card
+        (begin
+          (next-move)
+          (transfer-program card)
+          (add-program))
+        (reset #f #t))))
 
 (define (new-game btn event)
   (clean-table)
@@ -151,6 +163,7 @@
   (= (state 'turn) 0))
 
 (define (play)
+  (state! 'table '())
   (state! 'move 0)
   (set-btn "")
   (if (human-turn?)

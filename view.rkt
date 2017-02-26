@@ -27,7 +27,8 @@
 (define new-btn null)
 
 (define (view-init card-click btn-click new-game)
-  (send tbl set-double-click-action card-click)
+  (send tbl set-single-click-action card-click)
+  (send tbl set-double-click-action null)
   (set! btn
     (new button% [parent panel] [label "EMPTY"] [enabled #t] [callback btn-click]))
   (set! new-btn
