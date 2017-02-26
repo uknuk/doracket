@@ -80,23 +80,26 @@
          (begin
            (transfer card human)
            (state! 'msg "")
-           (if (human-turn?)           
-             (let ([rcard (respond card (player-hand program) state)])
-               (if rcard
-                   (transfer-program rcard)                                
-                   (begin
-                     (state! 'more #t)
-                     (view-message "Computer takes. You can add more cards")))
-               (set-btn "PASS")
-               (next-move))
-             (begin
-               (next-move)
-               (attack-program))))))
+           (if (human-turn?)
+               (react card)               
+               (when (< (state 'move) 5)
+                 (next-move) 
+                 (attack-program))))))
             
-               
-
+(define (react card)
+  (when (state 'more #f)
+    (let ([rcard (respond card (player-hand program) state)])
+      (if rcard
+          (transfer-program rcard)                                
+          (begin
+            (state! 'more #t)
+            (view-message "Computer takes. You can add more cards")))))
+  (set-btn "PASS")
+  (next-move))
+        
+         
 (define (check card)
-  (if (human-turn?)
+  (if (and (human-turn?) (< (state 'move) 6))
       (if (empty? (state 'table))
           #t
           (member (rank card) (map rank (state 'table))))
