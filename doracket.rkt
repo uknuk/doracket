@@ -1,11 +1,9 @@
 #lang rackjure
 (require games/cards srfi/1 "view.rkt" "game.rkt")
 
-(define HAND-SIZE 6)
-
-(struct player (name hand slots gaps visible region) #:mutable #:transparent)
-(define human null)
-(define program null)
+(struct player (name hand region) #:mutable #:transparent)
+(define human (player 'human '() 'lower))
+(define program (player 'program '() 'upper))
 (define state null)
  
 (define val<? null)
@@ -13,10 +11,6 @@
 (define attack null)
 
 (define (start)
-  (set! human
-        (player "human" '() '() (iota HAND-SIZE 0) #t "lower"))
-  (set! program
-        (player "program" '() '() (iota HAND-SIZE 0) #f "upper"))
   (set! state
         {'pile (shuffle-deck) 'table '() 'move 0 'msg "Welcome!" 'more #f})  
   (state! 'trump (suit (last (state 'pile))))
@@ -29,19 +23,15 @@
   (state! 'turn (least-trump (list (player-hand human) (player-hand program)) (state 'trump)))
   (play))
 
-
 (define (state! key val)
   (set! state (state key val)))
 
 (define (transfer card party)
   (let* ([card= (curry equal? card)]
-         [idx (list-index card= (player-hand party))]
-         [slot (list-ref (player-slots party) idx)])
+         [idx (list-index card= (player-hand party))])
     (set-player-hand! party (remove card= (player-hand party)))
-    (set-player-slots! party (remove (curry equal? slot) (player-slots party)))
     (state! 'table (append (state 'table) (list card)))
-    (set-player-gaps! party (append (player-gaps party) (list slot)))
-    (view-move card (player-region party) (state 'move))))
+    (view-transfer card idx (state 'move) (player-name party) (player-region party))))
   
 (define (transfer-program card)
   (transfer card program)
@@ -51,9 +41,8 @@
   (when (equal? party program)
     (flip-cards (state 'table))) 
   (fill party 'table)
-  (set-player-gaps! party (iota (length (state 'table)) (length (player-hand party))))
+  (gaps! (player-name party) (iota (length (state 'table)) (length (player-hand party))))
   (fill party 'table))
-
 
 (define (reset change takes)
   (if (human-turn?)
@@ -135,26 +124,22 @@
 
 (define (new-game btn event)
   (clean-table)
+  (set-player-hand! human '())
+  (set-player-hand!  program '())
   (start))
 
 (define (fill party from)
   (let* ([source (state from)]
+         [name (player-name party)]
          [needed (if (equal? from 'pile)
                   (- HAND-SIZE (length (player-hand party)))
-                  (length (player-gaps party)))]
+                  (gaps-length name))]
          [size (min needed (length source))])
     (when (and (positive? size) (positive? (length source)))
       (let-values ([(moving left) (split-at (state from) size)])
         (state! from left)
         (set-player-hand! party (append (player-hand party) moving))
-        (for-each
-         (lambda (card)
-           (let ([gap  (car (player-gaps party))])
-             (view-move card (player-name party) gap)
-             (set-player-gaps! party (cdr (player-gaps party)))
-             (set-player-slots! party (append (player-slots party) (list gap)))
-             (when (player-visible party) (send card face-up))))
-         moving)))))
+        (for-each (lambda (card) (view-move card (player-name party))) moving)))))
 
 (define (flip-cards cards)
   (for-each (lambda (card) (send card flip)) cards))

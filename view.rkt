@@ -1,16 +1,36 @@
-#lang racket
-(require games/cards racket/gui/base)
-(provide view-init view-move view-message show-pile set-btn discard clean-table)
+#lang rackjure
+(require games/cards srfi/1 racket/gui/base)
+(provide HAND-SIZE view-init view-move view-transfer gaps-length gaps! view-message show-pile set-btn discard clean-table)
+
+(define HAND-SIZE 6)
 
 (struct area (x y delta) #:transparent)
 
 (define areas
-  (hash
-   "pile" (area 10 150 1)
-   "human" (area 100 450 80)
-   "program" (area 100 10 40)
-   "upper" (area 240 200 120)
-   "lower" (area 280 240 120)))
+  {'pile (area 10 150 1)
+   'human (area 100 450 80)
+   'program (area 100 10 40)
+   'upper (area 240 200 120)
+   'lower (area 280 240 120)})
+
+(define (range) (iota HAND-SIZE 0))
+
+(define gaps {'human (range) 'program (range)})
+
+(define slots {'human '() 'program '()})
+
+;; make macro
+(define (gaps! key val)
+  (set! gaps (gaps key val)))
+
+(define (slots! key val)
+  (set! slots (slots key val)))
+
+(define (gaps-length key)
+  (length (gaps key)))
+
+(define (visible? name)
+  (equal? name 'human))
 
 (define trump-card null)
 
@@ -36,9 +56,24 @@
    (send tbl show #t))
 
 
+(define (view-transfer card idx position key region)
+  (let ([slot (list-ref (slots key) idx)])
+    (slots! key (remove (curry equal? slot) (slots key)))
+    (gaps! key (append (gaps key) (list slot)))
+    (move-card card region position)))
 
-(define (view-move card key n)
-  (let ([region (hash-ref areas key)])
+
+
+(define (view-move card key)
+  (let ([gap (car (gaps key))])
+    (move-card card key gap)
+    (gaps! key (cdr (gaps key)))
+    (slots! key (append (slots key) (list gap)))
+    (when (visible? key) (send card face-up))))
+
+
+(define (move-card card key n)
+  (let ([region (areas key)])
     (when (equal? card trump-card)
       (move-trump card key))
     (send tbl move-card card
@@ -50,7 +85,7 @@
 
 
 (define (show-pile cards)
-  (let* ([pile (hash-ref areas "pile")]
+  (let* ([pile (areas 'pile)]
          [size (sub1 (length cards))]
          [delta (area-delta pile)])
     (send tbl add-cards cards (area-x pile) (area-y pile)
@@ -58,7 +93,6 @@
             (values (* i (+ delta (if (= i size) 1 0)))
                     (* i delta)))))
   (set! trump-card (last cards))
-  ;(let* ([trump (last cards)])
   (send tbl rotate-card trump-card 'cw)
   (send trump-card face-up))
 
@@ -70,10 +104,13 @@
 ;; ffs: move to bin for analysis
 
 (define (clean-table)
-  (discard (send tbl all-cards)))
+  (discard (send tbl all-cards))
+  (set! gaps {'human (range) 'program (range)})
+  (set! slots {'human '() 'program '()}))
+
 
 (define (move-trump card key)
   (set! trump-card null)
   (send tbl rotate-card card 'ccw)
-  (when (equal? key "program")
+  (when (equal? key 'program)
     (send card face-down)))
