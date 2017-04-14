@@ -1,6 +1,7 @@
 #lang rackjure
 (require games/cards srfi/1 racket/gui/base)
-(provide HAND-SIZE view-init view-move view-transfer gaps-length gaps! view-message show-pile set-btn discard clean-table)
+(provide HAND-SIZE view-init view-move view-transfer gaps-length gaps! view-message show-pile
+         set-btn discard clean-table fill-gaps fill-gap slots gaps)
 
 (define HAND-SIZE 6)
 
@@ -62,14 +63,38 @@
     (gaps! key (append (gaps key) (list slot)))
     (move-card card region position)))
 
+(define (fill-gaps key cards)
+  (let ([indeces (iota (length cards) 0)]
+        [the-slots (slots key)])
+    (when (not (empty? (gaps key)))
+      (for-each (lambda (idx) (fill-gap idx key cards the-slots)) indeces))))
+
+
+(define (fill-gap idx key cards the-slots)
+  (let ([the-gaps (gaps key)]
+        [slot (list-ref the-slots idx)])
+    (when (and (not (empty? the-gaps)) (> slot 5))
+      (let ([gap (car the-gaps)]
+            [card (list-ref cards idx)]
+            [new-slots (slots key)])
+        (move-card card key gap)
+        (gaps! key (cdr the-gaps))
+        (slots! key (remove (curry equal? slot) new-slots))
+        (slots! key (append new-slots (list slot)))))))
 
 
 (define (view-move card key)
-  (let ([gap (car (gaps key))])
-    (move-card card key gap)
-    (gaps! key (cdr (gaps key)))
-    (slots! key (append (slots key) (list gap)))
-    (when (visible? key) (send card face-up))))
+  (if (empty? (gaps key))
+      (move-slot card key (add1 (apply max (slots key))))
+      (begin
+         (move-slot card key (car (gaps key)))
+         (gaps! key (cdr (gaps key))))))
+
+(define (move-slot card key n)
+ (move-card card key n)
+ (slots! key (append (slots key) (list n)))
+ (when (visible? key)
+   (send card face-up)))
 
 
 (define (move-card card key n)

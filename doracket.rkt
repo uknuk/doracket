@@ -37,23 +37,27 @@
   (transfer card program)
   (send card flip))
 
-(define (take party)
+(define (take party)  
   (when (equal? party program)
     (flip-cards (state 'table))) 
   (fill party 'table)
   (gaps! (player-name party) (iota (length (state 'table)) (length (player-hand party))))
   (fill party 'table))
 
+(define (fill-from-pile party)
+  (fill-gaps (player-name party) (player-hand party))
+  (fill party 'pile))
+
 (define (reset change takes)
   (if (human-turn?)
       ; pass human
       (begin
         (discard (state 'table))
-        (fill human 'pile))
+        (fill-from-pile human))
       (if takes
           (take human) 
-          (fill human 'pile))) ; pass program
-  (fill program 'pile)
+          (fill-from-pile human))) ; pass program
+  (fill-from-pile program)
   (if change
     (state! 'turn (- 1 (state 'turn)))
     (begin
@@ -76,7 +80,7 @@
                  (attack-program))))))
             
 (define (react card)
-  (when (state 'more #f)
+  (when (not (state 'more))
     (let ([rcard (respond card (player-hand program) state)])
       (if rcard
           (transfer-program rcard)                                
