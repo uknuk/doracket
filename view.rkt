@@ -14,11 +14,11 @@
    'upper (area 240 200 120)
    'lower (area 280 240 120)})
 
-(define (range) (iota HAND-SIZE 0))
+;(define (range) (iota HAND-SIZE 0))
 
-(define gaps {'human (range) 'program (range)})
+(define gaps {'human '() 'program '()})
 
-(define slots {'human '() 'program '()})
+(define slots {'human '() 'program  '()})
 
 ;; make macro
 (define (gaps! key val)
@@ -64,28 +64,26 @@
     (move-card card region position)))
 
 (define (fill-gaps key cards)
-  (let ([indeces (iota (length cards) 0)]
-        [the-slots (slots key)])
-    (when (not (empty? (gaps key)))
-      (for-each (lambda (idx) (fill-gap idx key cards the-slots)) indeces))))
+      (when (not (empty? (gaps key)))
+        (for-each (lambda (gap) (fill-gap gap key cards)) (gaps key))))
 
 
-(define (fill-gap idx key cards the-slots)
-  (let ([the-gaps (gaps key)]
-        [slot (list-ref the-slots idx)])
-    (when (and (not (empty? the-gaps)) (> slot 5))
-      (let ([gap (car the-gaps)]
-            [card (list-ref cards idx)]
-            [new-slots (slots key)])
-        (move-card card key gap)
+(define (fill-gap gap key cards)
+  (let* ([the-gaps (gaps key)]
+         [the-slots (slots key)]
+         [slot (max-slot key)])
+    (when (< gap slot)
+      (let* ([idx (list-index (curry equal? slot) the-slots)]
+             [card (list-ref cards idx)])
         (gaps! key (cdr the-gaps))
-        (slots! key (remove (curry equal? slot) new-slots))
-        (slots! key (append new-slots (list slot)))))))
+        (slots! key (remove (curry equal? slot) the-slots))
+        (move-slot card key gap)))))
+
 
 
 (define (view-move card key)
   (if (empty? (gaps key))
-      (move-slot card key (add1 (apply max (slots key))))
+      (move-slot card key (add1 (max-slot key)))
       (begin
          (move-slot card key (car (gaps key)))
          (gaps! key (cdr (gaps key))))))
@@ -95,6 +93,11 @@
  (slots! key (append (slots key) (list n)))
  (when (visible? key)
    (send card face-up)))
+
+(define (max-slot key)
+    (if (empty? (slots key))
+        -1
+        (apply max (slots key))))
 
 
 (define (move-card card key n)

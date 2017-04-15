@@ -40,24 +40,19 @@
 (define (take party)  
   (when (equal? party program)
     (flip-cards (state 'table))) 
-  (fill party 'table)
-  (gaps! (player-name party) (iota (length (state 'table)) (length (player-hand party))))
   (fill party 'table))
 
-(define (fill-from-pile party)
-  (fill-gaps (player-name party) (player-hand party))
-  (fill party 'pile))
-
 (define (reset change takes)
+  (fill-gaps 'human (player-hand human))
   (if (human-turn?)
       ; pass human
       (begin
         (discard (state 'table))
-        (fill-from-pile human))
+        (fill human 'pile))
       (if takes
           (take human) 
-          (fill-from-pile human))) ; pass program
-  (fill-from-pile program)
+          (fill human 'pile))) ; pass program
+  (fill program 'pile)
   (if change
     (state! 'turn (- 1 (state 'turn)))
     (begin
@@ -133,17 +128,17 @@
   (start))
 
 (define (fill party from)
-  (let* ([source (state from)]
-         [name (player-name party)]
-         [needed (if (equal? from 'pile)
-                  (- HAND-SIZE (length (player-hand party)))
-                  (gaps-length name))]
-         [size (min needed (length source))])
-    (when (and (positive? size) (positive? (length source)))
-      (let-values ([(moving left) (split-at (state from) size)])
-        (state! from left)
-        (set-player-hand! party (append (player-hand party) moving))
-        (for-each (lambda (card) (view-move card (player-name party))) moving)))))
+  (let ([source (state from)])
+    (when (positive? (length source))
+      (let* ([name (player-name party)]
+             [size (if (equal? from 'pile)
+                  (min (- HAND-SIZE (length (player-hand party))) (length source))
+                  (length source))])
+        (when (positive? size)
+          (let-values ([(moving left) (split-at (state from) size)])
+            (state! from left)
+            (set-player-hand! party (append (player-hand party) moving))
+            (for-each (lambda (card) (view-move card (player-name party))) moving)))))))
 
 (define (flip-cards cards)
   (for-each (lambda (card) (send card flip)) cards))
