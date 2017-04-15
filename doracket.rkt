@@ -146,6 +146,9 @@
 (define (flip-program)
   (flip-cards (player-hand program)))
 
+(define (values party)
+  (map (lambda (card) (list (rank card) (suit card))) (player-hand party)))
+
 (define (human-turn?)
   (= (state 'turn) 0))
 

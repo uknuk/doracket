@@ -64,8 +64,11 @@
     (move-card card region position)))
 
 (define (fill-gaps key cards)
-      (when (not (empty? (gaps key)))
-        (for-each (lambda (gap) (fill-gap gap key cards)) (gaps key))))
+  (when (not (empty? (gaps key)))
+    (begin)
+    (fill-gap (car (gaps key)) key cards)
+    (gaps! key (cdr (gaps key)))
+    (fill-gaps key cards)))
 
 
 (define (fill-gap gap key cards)
@@ -73,12 +76,11 @@
          [the-slots (slots key)]
          [slot (max-slot key)])
     (when (< gap slot)
-      (let* ([idx (list-index (curry equal? slot) the-slots)]
+      (let* ([slot= (curry equal? slot)]
+             [idx (list-index slot= the-slots)]
              [card (list-ref cards idx)])
-        (gaps! key (cdr the-gaps))
-        (slots! key (remove (curry equal? slot) the-slots))
+        (slots! key (remove slot= the-slots))
         (move-slot card key gap)))))
-
 
 
 (define (view-move card key)
@@ -133,7 +135,7 @@
 
 (define (clean-table)
   (discard (send tbl all-cards))
-  (set! gaps {'human (range) 'program (range)})
+  (set! gaps {'human '() 'program '()})
   (set! slots {'human '() 'program '()}))
 
 
