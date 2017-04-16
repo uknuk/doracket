@@ -1,7 +1,7 @@
 #lang rackjure
 (require games/cards srfi/1 racket/gui/base)
 (provide HAND-SIZE view-init view-move view-transfer gaps-length gaps! view-message show-pile
-         set-btn discard clean-table fill-gaps fill-gap slots gaps)
+         set-btn discard clean-table fill-gaps fill-gap slots gaps move-card tbl)
 
 (define HAND-SIZE 6)
 
@@ -10,9 +10,10 @@
 (define areas
   {'pile (area 10 150 1)
    'human (area 100 450 80)
-   'program (area 100 10 40)
+   'program (area 100 10 20)
    'upper (area 240 200 120)
-   'lower (area 280 240 120)})
+   'lower (area 280 240 120)
+   'bottom (area 100 550 80)})
 
 ;(define (range) (iota HAND-SIZE 0))
 
@@ -35,7 +36,7 @@
 
 (define trump-card null)
 
-(define tbl (make-table "DoRacket" 16 6))
+(define tbl (make-table "DoRacket" 12 7))
 
 (define msg
   (new message% [parent tbl] [label "Welcome"]))
@@ -79,8 +80,8 @@
       (let* ([slot= (curry equal? slot)]
              [idx (list-index slot= the-slots)]
              [card (list-ref cards idx)])
-        (slots! key (remove slot= the-slots))
-        (move-slot card key gap)))))
+        (slots! key (map (lambda (s) (if (= s slot) gap s)) the-slots))
+        (move-card card key gap)))))
 
 
 (define (view-move card key)
@@ -101,14 +102,19 @@
         -1
         (apply max (slots key))))
 
-
 (define (move-card card key n)
-  (let ([region (areas key)])
-    (when (equal? card trump-card)
+  (when (equal? card trump-card)
       (move-trump card key))
-    (send tbl move-card card
-          (+ (area-x region) (* n (area-delta region)))
-             (area-y region))))
+  (if (and (equal? key 'human) (> n 8))
+      (move-region card (areas 'bottom) (- n 9))
+      (move-region card (areas key) n)))
+
+(define (move-region card region n)
+  ;(write region)
+  ;(write n)
+  (send tbl move-card card
+        (+ (area-x region) (* n (area-delta region)))
+        (area-y region)))
 
 (define (view-message info)
   (send msg set-label info))

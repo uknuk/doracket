@@ -27,11 +27,13 @@
   (set! state (state key val)))
 
 (define (transfer card party)
-  (let* ([card= (curry equal? card)]
-         [idx (list-index card= (player-hand party))])
-    (set-player-hand! party (remove card= (player-hand party)))
-    (state! 'table (append (state 'table) (list card)))
-    (view-transfer card idx (state 'move) (player-name party) (player-region party))))
+  (let* ([hand (player-hand party)]
+         [card= (curry equal? card)]
+         [idx (list-index card= hand)])
+    (view-transfer card idx (state 'move) (player-name party) (player-region party))
+    (set-player-hand! party (remove card= hand))   
+    (state! 'table (append (state 'table) (list card)))))
+   
   
 (define (transfer-program card)
   (transfer card program)
@@ -43,21 +45,25 @@
   (fill party 'table))
 
 (define (reset change takes)
-  (fill-gaps 'human (player-hand human))
   (if (human-turn?)
       ; pass human
       (begin
-        (discard (state 'table))
+        (when change
+          (discard (state 'table)))
         (fill human 'pile))
       (if takes
-          (take human) 
+          (take human) ;
           (fill human 'pile))) ; pass program
-  (fill program 'pile)
+  (when takes
+    (fill program 'pile))
   (if change
-    (state! 'turn (- 1 (state 'turn)))
-    (begin
-      (take program)
-      (state! 'more #f)))
+      (begin
+        (fill program 'pile)
+        (state! 'turn (- 1 (state 'turn))))
+      (begin
+        (take program)
+        (state! 'more #f))) 
+ 
   (play))
    
 (define (next-move)
@@ -103,7 +109,7 @@
        (begin
          (discard (state 'table))
          (state! 'msg "Computer passes.")
-         (reset #t #f))))
+         (reset #t #f)))) ; program passes: change & !takes
       
     
 (define (btn-click btn event)
@@ -119,7 +125,7 @@
           (next-move)
           (transfer-program card)
           (add-program))
-        (reset #f #t))))
+        (reset #f #t)))) ; program passes when human takes: !change & takes
 
 (define (new-game btn event)
   (clean-table)
@@ -128,6 +134,7 @@
   (start))
 
 (define (fill party from)
+  (fill-gaps (player-name party) (player-hand party))
   (let ([source (state from)])
     (when (positive? (length source))
       (let* ([name (player-name party)]
